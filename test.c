@@ -1,0 +1,129 @@
+/*
+ * =====================================================================================
+ *
+ *       Filename:  test.c
+ *
+ *    Description:  
+ *
+ *        Version:  1.0
+ *        Created:  06/28/2016 14:58:18
+ *       Revision:  none
+ *       Compiler:  gcc
+ *
+ *         Author:  azalea, 
+ *   Organization:  
+ *
+ * =====================================================================================
+ */
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "hashtable.h"
+#include <assert.h>
+
+#define  MAX_NAME_SIZE	25
+#define  MAX_TEL_SIZE	12
+#define  MAX_EMAIL_SIZE	20
+
+struct  address_list_info {
+	char name[MAX_NAME_SIZE]; //key
+	char tel[MAX_TEL_SIZE];
+	char email[MAX_EMAIL_SIZE];
+	struct list_head list;
+};
+
+static size_t hash(const struct list_head *pnode)
+{
+	size_t ret = 0;
+	
+	struct address_list_info *pa = 
+		container_of(pnode, struct address_list_info, list);
+
+	const char *pname = pa->name;
+
+	while (*pname != '\0') {
+		ret += *pname++;
+	}
+
+	return ret;
+}
+
+
+int hash_cmp(const struct list_head *a, 
+			const struct list_head *b)
+{
+	struct address_list_info *pa = 
+	container_of(a, struct address_list_info, list);
+	struct address_list_info *pb = 
+	container_of(b, struct address_list_info, list);
+	
+	return  strcmp(pa->name, pb->name) == 0;
+}
+
+struct address_list_info *find_by_name(struct hashtable_info *info, const char *name)
+{
+	struct  address_list_info key = { };
+	strncpy(key.name, name, MAX_NAME_SIZE);
+
+	struct  list_head *pentry =
+		info->find(&key.list, info);
+	
+	if (pentry == NULL) {
+		fprintf(stderr, "Error: %s not found.\n",name);
+		return NULL;
+	}
+	
+	return  container_of(pentry, struct address_list_info, list);
+}
+
+
+int main()
+{
+	struct address_list_info s[] = {
+		{"tom", "11111111", "xxx_tom@xx.com"},
+		{"jack", "2222222", "xxx_jack@xx.com"},
+		{"niko", "3333333", "xxx_niko@xx.com"},
+		{"tom", "4444444", "xxx_tom2@xx.com"},
+		{"frank", "5555555", "xxx_frank@xx.com"},
+		{"tom", "666666", "xxx_tom3@xx.com"},
+		{"tom", "777777", "xxx_tom4@xx.com"},
+	};
+
+	struct  hashtable_info *phashtable = 
+		(struct hashtable_info *)malloc(sizeof(*phashtable));
+
+	assert(phashtable != NULL);
+
+	hash_table_init(phashtable, 3, hash, hash_cmp);
+
+	int i;
+	for (i = 0; i < sizeof s / sizeof s[0]; ++i) {
+		phashtable->push(&s[i].list, phashtable);
+	}	
+#ifdef _DEBUG
+	for (i = 0; i < phashtable->nmemb; ++i) {
+		printf("tab[%d]:\n", i);
+		struct  list_head *cur;
+		list_for_each(cur, phashtable->ptab + i) {
+		struct  address_list_info *pa = 
+			container_of(cur, struct address_list_info, list);
+		printf("%s:%s:%s\n", pa->name, pa->tel, pa->email);
+	}
+	}
+#endif
+
+	printf("find---by--name\n");
+
+	struct address_list_info *pa =
+		find_by_name(phashtable, "tom");
+	pa  =  find_by_name(phashtable, "tom");
+	pa  =  find_by_name(phashtable, "jack");
+	if (pa != NULL) {
+		printf("%s:%s:%s\n", pa->name, pa->tel, pa->email);
+	}
+
+
+	hash_table_destroy(phashtable);
+	return 0;
+}
+
